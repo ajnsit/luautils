@@ -1,5 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, TypeSynonymInstances #-}
-{-# LANGUAGE FunctionalDependencies, ScopedTypeVariables, OverlappingInstances #-}
+{-# LANGUAGE ScopedTypeVariables, OverlappingInstances #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {- |
 Module      :  Scripting.LuaUtils
 Copyright   :  (c) Anupam Jain 2011
@@ -19,17 +21,18 @@ Currently the following features are provided -
 2. @luaDoString@ and @luaDoFile@ utility functions.
 3. A function to dump the contents of the stack for debugging purposes (@dumpStack@).
 -}
-module Scripting.LuaUtils (
-  luaDoString,
-  luaDoFile,
-  dumpStack,
+module Scripting.LuaUtils
+  ( luaDoString
+  , luaDoFile
+  , dumpStack
   -- Also exports instances
-) where
+  ) where
 
-import Prelude
+import CustomPrelude
+import qualified Data.Text as T
 
 import Data.Maybe (fromJust)
-import Control.Monad (forM, forM_)
+import qualified Data.Map as M
 import Control.Monad.Loops (whileM, whileM_)
 
 import qualified Scripting.Lua as Lua
@@ -39,23 +42,30 @@ import qualified Scripting.Lua as Lua
 -- StackValue Instances  --
 ---------------------------
 
+-- | StackValue instance for Text
+instance Lua.StackValue Text where
+  push l x  = Lua.push l $ T.unpack x
+  peek l ix = do
+    i <- getIdx l ix
+    x <- Lua.peek l i
+    return $ Just $ T.pack (fromJust x)
+
+  valuetype _ = Lua.TSTRING
+
 -- | StackValue instance for Maybe values
 instance (Lua.StackValue o) => Lua.StackValue (Maybe o) where
-  push l (Just x) = pushTagged l "Just" x
+  push l (Just x)  = pushTagged l "Just" x
   push l (Nothing) = pushTagged l "Nothing" ()
-  peek l i
-    | i < 0 = Lua.gettop l >>= \top -> Lua.peek l (top + i + 1)
-    | otherwise = do
-      Lua.pushnil l
-      Lua.next l i
-      Just typ <- Lua.peek l (-1)
-      Lua.pop l 1
-      case typ of
-        "Just" -> pullTagged l i Just
-        "Nothing" -> pullTagged l i f
-        where
-          f :: o -> Maybe o
-          f = const Nothing
+  peek l ix = do
+    i   <- getIdx l ix
+    tag <- readTag l i
+    case tag of
+      "Just"    -> pullTagged l i Just
+      "Nothing" -> pullTagged l i f
+      _         -> error "Invalid Value"
+      where
+        f :: o -> Maybe o
+        f = const Nothing
 
   valuetype _ = Lua.TUSERDATA
 
@@ -63,16 +73,13 @@ instance (Lua.StackValue o) => Lua.StackValue (Maybe o) where
 instance (Lua.StackValue o1, Lua.StackValue o2) => Lua.StackValue (Either o1 o2) where
   push l (Left x) = pushTagged l "Left" x
   push l (Right x) = pushTagged l "Right" x
-  peek l i
-    | i < 0 = Lua.gettop l >>= \top -> Lua.peek l (top + i + 1)
-    | otherwise = do
-      Lua.pushnil l
-      Lua.next l i
-      Just typ <- Lua.peek l (-1)
-      Lua.pop l 1
-      case typ of
-        "Left" -> pullTagged l i Left
-        "Right" -> pullTagged l i Right
+  peek l ix = do
+    i   <- getIdx l ix
+    tag <- readTag l i
+    case tag of
+      "Left" -> pullTagged l i Left
+      "Right" -> pullTagged l i Right
+      _ -> error "Invalid Value"
 
   valuetype _ = Lua.TUSERDATA
 
@@ -87,8 +94,7 @@ instance (Lua.StackValue a) => Lua.StackValue [a]
         Lua.rawseti l (-2) ix
 
     peek l i = do
-      top <- Lua.gettop l
-      let ix = if (i < 0) then top + i + 1 else i
+      ix <- getIdx l i
       Lua.pushnil l
       arr <- whileM (Lua.next l ix) $ do
         xm <- Lua.peek l (-1)
@@ -112,8 +118,7 @@ instance (Lua.StackValue a, Lua.StackValue b) => Lua.StackValue (a,b)
       Lua.rawseti l (-2) 3
 
     peek l i = do
-      top <- Lua.gettop l
-      let ix = if (i < 0) then top + i + 1 else i
+      ix <- getIdx l i
       Lua.pushnil l
       Lua.next l ix
       Just a <- Lua.peek l (-1)
@@ -179,6 +184,33 @@ instance (Lua.StackValue a, Lua.StackValue b, Lua.StackValue c, Lua.StackValue d
       return $ Just (a,b,c,d,e,f,g,h)
     valuetype _ = Lua.TUSERDATA
 
+-- | Stackvalue instance for Maps
+instance (Lua.StackValue k, Lua.StackValue v, Ord k) => Lua.StackValue (M.Map k v)
+  where
+    push l m = do
+      let llen = M.size m + 1
+      Lua.createtable l llen 0
+      M.foldlWithKey f (return ()) m
+      where
+        f m' k v = m' >> do
+          Lua.push l k
+          Lua.push l v
+          Lua.rawset l (-3)
+    peek l i = do
+      ix <- getIdx l i
+      Lua.pushnil l
+      m <- whileIterateM (const $ Lua.next l ix) f M.empty
+      return $ Just m
+      where
+        f m = do
+          k <- Lua.peek l (-2)
+          v <- Lua.peek l (-1)
+          Lua.pop l 1
+          return $ M.insert (fromJust k) (fromJust v) m
+
+    valuetype _ = Lua.TTABLE
+
+-- | Pull out a tagged value
 pullTagged :: Lua.StackValue o => Lua.LuaState -> Int -> (o -> a) -> IO (Maybe a)
 pullTagged l i f = do
   Lua.next l i
@@ -186,14 +218,31 @@ pullTagged l i f = do
   Lua.pop l 1
   return $ Just $ f x
 
-
-pushTagged :: (Lua.StackValue o1, Lua.StackValue o2) => Lua.LuaState -> o1 -> o2 -> IO ()
+-- | Push in a tagged value
+pushTagged :: (Lua.StackValue o) => Lua.LuaState -> String -> o -> IO ()
 pushTagged l s o = do
   Lua.createtable l 2 0
   Lua.push l s
   Lua.rawseti l (-2) 1
   Lua.push l o
   Lua.rawseti l (-2) 2
+
+-- | Read the tag of a value
+readTag :: Lua.LuaState -> Int -> IO String
+readTag l i = do
+  Lua.pushnil l
+  Lua.next l i
+  Just tag <- Lua.peek l (-1)
+  Lua.pop l 1
+  return tag
+
+-- | Compute the normalised index of a value
+getIdx :: Lua.LuaState -> Int -> IO Int
+getIdx l i
+  | i < 0 = do
+      top <- Lua.gettop l
+      return $ top + i + 1
+  | otherwise = return i
 
 
 -----------------------
@@ -220,23 +269,18 @@ luaDoFile l s = do
 -- | Pretty print the contents of the entire Lua stack in a human readable form
 dumpStack :: Lua.LuaState -> IO ()
 dumpStack l = do
-  putStrLn $ "<stack>"
+  putStrLn "<stack>"
   top <- Lua.gettop l
-  forM (reverse [1..top]) (\x -> pValue l x 2)
-  putStrLn $ "</stack>"
+  forM_ (reverse [1..top]) (\x -> pValue l x 2)
+  putStrLn "</stack>"
   return ()
-
-putIdent x
-  | x <= 0 = return ()
-  | otherwise = putStr " " >> putIdent (x-1)
 
 -- Print a value at the specified index in the stack
 -- We handle only the string, number, and table cases here
 pValue :: Lua.LuaState -> Int -> Int -> IO ()
 pValue l i ident = do
-  top <- Lua.gettop l
-  let ix = if (i < 0) then top + i + 1 else i
-  t <- Lua.ltype l ix
+  ix <- getIdx l i
+  t  <- Lua.ltype l ix
   case t of
     Lua.TNIL -> do
       putIdent ident
@@ -266,3 +310,8 @@ pValue l i ident = do
     _ -> do
       putIdent ident
       putStrLn "<unknown value />"
+  where
+    putIdent x
+      | x <= 0 = return ()
+      | otherwise = putStr " " >> putIdent (x-1)
+
