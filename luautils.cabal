@@ -30,4 +30,5 @@ Library
                ,     monad-loops >= 0.3
                ,     containers >= 0.4 && < 5
                ,     custom-prelude >= 0.1
+               ,     text >= 0.11
   exposed-modules:   Scripting.LuaUtils
