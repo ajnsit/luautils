@@ -100,7 +100,6 @@ instance (Lua.StackValue a) => Lua.StackValue [a]
         xm <- Lua.peek l (-1)
         Lua.pop l 1
         return $ fromJust xm
-      Lua.pop l 1
       return $ Just arr
 
     valuetype _ = Lua.TTABLE
