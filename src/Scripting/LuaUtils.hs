@@ -249,13 +249,13 @@ getIdx l i
 -----------------------
 
 -- | Execute a String containing Lua Code
-luaDoString :: Lua.LuaState -> String -> IO Int
+luaDoString :: Lua.LuaState -> String -> IO ()
 luaDoString l s = do
   Lua.loadstring l s ""
   Lua.call l 0 0
 
 -- | Execute a Lua script file
-luaDoFile :: Lua.LuaState -> String -> IO Int
+luaDoFile :: Lua.LuaState -> String -> IO ()
 luaDoFile l s = do
   Lua.loadfile l s
   Lua.call l 0 0
