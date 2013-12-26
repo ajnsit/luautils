@@ -9,7 +9,7 @@ License-file:         LICENSE
 Author:              Anupam Jain
 Maintainer:          ajnsit@gmail.com
 Build-type:          Simple
-Cabal-version:       >=1.6
+Cabal-version:       >=1.8
 stability:           Experimental
 Category:            Scripting
 Extra-source-files:   README
@@ -32,4 +32,18 @@ Library
                ,     custom-prelude >= 0.1
                ,     text >= 0.11
   exposed-modules:   Scripting.LuaUtils
+
+test-suite simple
+  type:            exitcode-stdio-1.0
+  main-is:         simple.hs
+  build-depends:   base
+               ,   hslua
+               ,   luautils
+               ,   QuickCheck
+               ,   test-framework
+               ,   test-framework-th
+               ,   test-framework-quickcheck2
+               ,   quickcheck-instances
+               ,   containers
+  hs-source-dirs:  tests
 
