@@ -1,4 +1,4 @@
-LuaUtils (luautils-0.1.2)
+LuaUtils (luautils-0.1.3)
 =========================
 
 This package is an add-on to the @HsLua@ package by Gracjan Polak (http://hackage.haskell.org/package/hslua).
@@ -20,4 +20,5 @@ Changelog
 0.1.1.1 : No Changes. Bumped version number for upload to Hackage
 0.1.1.2 : Fixed bug with the StackValue instance for lists
 0.1.2 : HsLua 0.3.9 compatibility; LuaDoFile and LuaDoString now return `IO ()` instead of `IO Int`
+0.1.3 : Fixed bug with StackValue.peek for Tuples
 
