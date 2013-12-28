@@ -124,7 +124,7 @@ instance (Lua.StackValue a, Lua.StackValue b) => Lua.StackValue (a,b)
       Lua.pop l 1
       Lua.next l ix
       Just b <- Lua.peek l (-1)
-      Lua.pop l 1
+      Lua.pop l 2
       return $ Just (a,b)
 
     valuetype _ = Lua.TUSERDATA
