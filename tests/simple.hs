@@ -9,7 +9,7 @@ import Test.Framework.Providers.QuickCheck2
 import Test.QuickCheck.Instances
 
 import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Text (Text)
 
 import qualified Scripting.Lua as Lua
 import Scripting.LuaUtils
@@ -29,15 +29,22 @@ testStackValueInstance xs = monadicIO $ do
 -- TODO: Write more tests
 prop_lists :: [Int] -> Property
 prop_lists = testStackValueInstance
-prop_tuple :: (Int,Int) -> Property
-prop_tuple = testStackValueInstance
+prop_double :: (Int,Int) -> Property
+prop_double = testStackValueInstance
+prop_triple :: (Int,Int,Int) -> Property
+prop_triple = testStackValueInstance
+prop_quadruple :: (Int,Int,Int,Int) -> Property
+prop_quadruple = testStackValueInstance
 prop_maps :: Map Int Int -> Property
 prop_maps = testStackValueInstance
+prop_text :: Text -> Property
+prop_text = testStackValueInstance
 
 main :: IO ()
 main = do
-  verboseCheck prop_lists
-  verboseCheck prop_tuple
-  verboseCheck prop_maps
--- main = $defaultMainGenerator
+   verboseCheck prop_triple
+--   verboseCheck prop_tuple
+--   verboseCheck prop_maps
+--   verboseCheck prop_text
+--main = $defaultMainGenerator
 

@@ -45,5 +45,7 @@ test-suite simple
                ,   test-framework-quickcheck2
                ,   quickcheck-instances
                ,   containers
+               ,   text
   hs-source-dirs:  tests
+  ghc-options:     -w -threaded -rtsopts -with-rtsopts=-N -O0 -Wall
 
