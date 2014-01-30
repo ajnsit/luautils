@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, TypeSynonymInstances #-}
 {-# LANGUAGE ScopedTypeVariables, OverlappingInstances #-}
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- |
 Module      :  Scripting.LuaUtils
@@ -22,7 +23,12 @@ Currently the following features are provided -
 3. A function to dump the contents of the stack for debugging purposes (@dumpStack@).
 -}
 module Scripting.LuaUtils
-  ( luaDoString
+  ( BinStackValue()
+  , toBinStackValue
+  , fromBinStackValue
+  , pushbinary
+  , peekbinary
+  , luaDoString
   , luaDoFile
   , dumpStack
   -- Also exports instances
@@ -30,10 +36,13 @@ module Scripting.LuaUtils
 
 import CustomPrelude
 import qualified Data.Text as T
+import qualified Data.Binary as BI
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Unsafe as BU
 
 import Data.Maybe (fromJust)
 import qualified Data.Map as M
-import Control.Monad.Loops (whileM, whileM_)
 
 import qualified Scripting.Lua as Lua
 
@@ -41,6 +50,30 @@ import qualified Scripting.Lua as Lua
 ---------------------------
 -- StackValue Instances  --
 ---------------------------
+
+-- Any serialisable type can be wrapped in a BinaryStackValue
+-- and will automatically become a member of StackValue
+newtype BinStackValue t = BinStackValue { fromBinStackValue :: t }
+
+deriving instance Eq t => Eq (BinStackValue t)
+
+toBinStackValue :: BI.Binary t => t -> BinStackValue t
+toBinStackValue = BinStackValue
+
+-- | StackValue instance for datatypes with Binary instances
+instance BI.Binary t => Lua.StackValue (BinStackValue t) where
+  -- We unwrap the Bytestring to the underlying CString with zero copying
+  -- We must NOT modify the cstring directly. Thankfully Lua.pushCStringLen
+  -- makes a copy and leaves the original intact
+  push l x = BU.unsafeUseAsCStringLen (BL.toStrict $ BI.encode $ fromBinStackValue x) $ Lua.pushCStringLen l
+
+  peek l ix = do
+    i <- getIdx l ix
+    c <- Lua.toCStringLen l i
+    b <- B.packCStringLen c
+    return $ Just $ toBinStackValue $ BI.decode $ BL.fromStrict b
+
+  valuetype _ = Lua.TUSERDATA
 
 -- | StackValue instance for Text
 instance Lua.StackValue Text where
@@ -51,6 +84,16 @@ instance Lua.StackValue Text where
     return $ Just $ T.pack (fromJust x)
 
   valuetype _ = Lua.TSTRING
+
+-- | Binary push
+pushbinary :: BI.Binary a => Lua.LuaState -> a -> IO ()
+pushbinary l = Lua.push l . toBinStackValue
+
+-- | Binary peek
+peekbinary :: BI.Binary a => Lua.LuaState -> Int -> IO (Maybe a)
+peekbinary l ix = do
+  mx <- Lua.peek l ix
+  return $ mx >>= fromBinStackValue
 
 -- | StackValue instance for Maybe values
 instance (Lua.StackValue o) => Lua.StackValue (Maybe o) where
