@@ -10,6 +10,8 @@ import Test.QuickCheck.Instances
 
 import Data.Map (Map)
 import Data.Text (Text)
+import Data.Text.Binary()
+import qualified Data.Binary as BI
 
 import qualified Scripting.Lua as Lua
 import Scripting.LuaUtils
@@ -25,26 +27,55 @@ testStackValueInstance xs = monadicIO $ do
          Lua.peek l (-1)
   assert $ xs == fromJust x
 
+testMultiStackValueInstance :: (Eq t, Lua.StackValue t) => t -> Property
+testMultiStackValueInstance xs = monadicIO $ do
+  (x1,x2) <- run $ do
+             l <- Lua.newstate
+             Lua.push l xs
+             Lua.push l ()
+             Lua.push l ()
+             Lua.push l xs
+             x1 <- Lua.peek l (-1)
+             x2 <- Lua.peek l (-4)
+             return (x1, x2)
+  assert $ xs == fromJust x1
+  assert $ xs == fromJust x2
+
+-- Testing Binary instances
+testBinStackValueInstance :: (Eq t, BI.Binary t) => t -> Property
+testBinStackValueInstance = testStackValueInstance . toBinStackValue
+
+testMultiBinStackValueInstance :: (Eq t, BI.Binary t) => t -> Property
+testMultiBinStackValueInstance = testMultiStackValueInstance . toBinStackValue
+
+-- Test both regular and binary instances
+testAllStackValueInstance :: (Eq t, BI.Binary t, Lua.StackValue t) => t -> Property
+testAllStackValueInstance xs = do
+    testStackValueInstance xs
+    testMultiStackValueInstance xs
+    testBinStackValueInstance xs
+    testMultiBinStackValueInstance xs
+
 -- Properties for all supported data types
 -- TODO: Write more tests
 prop_lists :: [Int] -> Property
-prop_lists = testStackValueInstance
+prop_lists = testAllStackValueInstance
 prop_double :: (Int,Int) -> Property
-prop_double = testStackValueInstance
+prop_double = testAllStackValueInstance
 prop_triple :: (Int,Int,Int) -> Property
-prop_triple = testStackValueInstance
+prop_triple = testAllStackValueInstance
 prop_quadruple :: (Int,Int,Int,Int) -> Property
-prop_quadruple = testStackValueInstance
+prop_quadruple = testAllStackValueInstance
 prop_maps :: Map Int Int -> Property
-prop_maps = testStackValueInstance
+prop_maps = testAllStackValueInstance
 prop_text :: Text -> Property
-prop_text = testStackValueInstance
+prop_text = testAllStackValueInstance
 
 main :: IO ()
-main = do
-   verboseCheck prop_triple
+--main = do
+--   verboseCheck prop_triple
 --   verboseCheck prop_tuple
 --   verboseCheck prop_maps
 --   verboseCheck prop_text
---main = $defaultMainGenerator
+main = $defaultMainGenerator
 
