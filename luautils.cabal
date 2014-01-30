@@ -4,15 +4,15 @@ Synopsis:            Helpers for Haskell integration with Lua
 Description:         This package is an add-on to the @HsLua@ package by Gracjan Polak.
                      HsLua only provides a very bare-bones wrapper over the Lua API, and this
                      package is meant to fill in the gap by providing some commonly used features.
-License:             GPL
-License-file:         LICENSE
+License:             MIT
+License-file:        LICENSE
 Author:              Anupam Jain
 Maintainer:          ajnsit@gmail.com
 Build-type:          Simple
 Cabal-version:       >=1.8
 stability:           Experimental
 Category:            Scripting
-Extra-source-files:   README.md
+Extra-source-files:  README.md
 
 source-repository head
   type:     git
