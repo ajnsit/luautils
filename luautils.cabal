@@ -26,13 +26,12 @@ source-repository this
 Library
   hs-source-dirs:    src
   Build-Depends:     base >= 3 && < 5
-               ,     hslua >= 0.3.11
-               ,     monad-loops >= 0.3
-               ,     containers >= 0.4 && < 5
-               ,     custom-prelude >= 0.1
-               ,     text >= 0.11
-               ,     bytestring >= 0.10
-               ,     binary >= 0.7
+               ,     hslua >= 0.4 && < 0.5
+               ,     monad-loops
+               ,     containers
+               ,     text
+               ,     bytestring
+               ,     binary
   exposed-modules:   Scripting.LuaUtils
 
 test-suite simple
