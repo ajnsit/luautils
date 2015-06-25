@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, TypeSynonymInstances #-}
 {-# LANGUAGE ScopedTypeVariables, OverlappingInstances #-}
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- |
@@ -34,18 +34,22 @@ module Scripting.LuaUtils
   -- Also exports instances
   ) where
 
-import CustomPrelude
+import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import qualified Data.Binary as BI
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Unsafe as BU
+
+import Control.Monad.Loops (whileM, whileM_)
 
 import Data.Maybe (fromJust)
 import qualified Data.Map as M
 
 import qualified Scripting.Lua as Lua
 
+import Util (whileIterateM, ifM, bool, forM_)
 
 ---------------------------
 -- StackValue Instances  --
@@ -62,26 +66,22 @@ toBinStackValue = BinStackValue
 
 -- | StackValue instance for datatypes with Binary instances
 instance BI.Binary t => Lua.StackValue (BinStackValue t) where
-  -- We unwrap the Bytestring to the underlying CString with zero copying
-  -- We must NOT modify the cstring directly. Thankfully Lua.pushCStringLen
-  -- makes a copy and leaves the original intact
-  push l x = BU.unsafeUseAsCStringLen (BL.toStrict $ BI.encode $ fromBinStackValue x) $ Lua.pushCStringLen l
+  push l x = Lua.push l $ BL.toStrict $ BI.encode $ fromBinStackValue x
 
   peek l ix = do
     i <- getIdx l ix
-    c <- Lua.toCStringLen l i
-    b <- B.packCStringLen c
-    return $ Just $ toBinStackValue $ BI.decode $ BL.fromStrict b
+    b <- Lua.peek l i
+    return $ fmap (toBinStackValue . BI.decode . BL.fromStrict) b
 
   valuetype _ = Lua.TUSERDATA
 
 -- | StackValue instance for Text
 instance Lua.StackValue Text where
-  push l x  = Lua.push l $ T.unpack x
+  push l x  = Lua.push l $ encodeUtf8 x
   peek l ix = do
     i <- getIdx l ix
     x <- Lua.peek l i
-    return $ Just $ T.pack (fromJust x)
+    return $ fmap decodeUtf8 x
 
   valuetype _ = Lua.TSTRING
 
@@ -125,27 +125,6 @@ instance (Lua.StackValue o1, Lua.StackValue o2) => Lua.StackValue (Either o1 o2)
       _ -> error "Invalid Value"
 
   valuetype _ = Lua.TUSERDATA
-
--- | StackValue instance for Lists
-instance (Lua.StackValue a) => Lua.StackValue [a]
-  where
-    push l xs = do
-      let llen = length xs + 1
-      Lua.createtable l llen 0
-      forM_ (zip [1..] xs) $ \(ix,val) -> do
-        Lua.push l val
-        Lua.rawseti l (-2) ix
-
-    peek l i = do
-      ix <- getIdx l i
-      Lua.pushnil l
-      arr <- whileM (Lua.next l ix) $ do
-        xm <- Lua.peek l (-1)
-        Lua.pop l 1
-        return $ fromJust xm
-      return $ Just arr
-
-    valuetype _ = Lua.TTABLE
 
 -- | Stackvalue instance for doubles
 instance (Lua.StackValue a, Lua.StackValue b) => Lua.StackValue (a,b)
@@ -261,7 +240,7 @@ pullTagged l i f = do
   return $ Just $ f x
 
 -- | Push in a tagged value
-pushTagged :: (Lua.StackValue o) => Lua.LuaState -> String -> o -> IO ()
+pushTagged :: (Lua.StackValue o) => Lua.LuaState -> Text -> o -> IO ()
 pushTagged l s o = do
   Lua.createtable l 2 0
   Lua.push l s
@@ -270,7 +249,7 @@ pushTagged l s o = do
   Lua.rawseti l (-2) 2
 
 -- | Read the tag of a value
-readTag :: Lua.LuaState -> Int -> IO String
+readTag :: Lua.LuaState -> Int -> IO Text
 readTag l i = do
   Lua.pushnil l
   Lua.next l i
@@ -337,7 +316,7 @@ pValue l i ident = do
       print x
     Lua.TSTRING -> do
       putIdent ident
-      Just (x:: String) <- Lua.peek l ix
+      Just (x::Text) <- Lua.peek l ix
       print x
     Lua.TTABLE -> do
       putIdent ident
