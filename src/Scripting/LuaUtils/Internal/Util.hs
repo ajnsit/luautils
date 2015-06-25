@@ -1,4 +1,4 @@
-module Util where
+module Scripting.LuaUtils.Internal.Util where
 
 -- Utility functions
 

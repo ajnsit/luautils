@@ -33,6 +33,7 @@ Library
                ,     bytestring
                ,     binary
   exposed-modules:   Scripting.LuaUtils
+               ,     Scripting.LuaUtils.Internal.Util
 
 test-suite simple
   type:            exitcode-stdio-1.0

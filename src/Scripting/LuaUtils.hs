@@ -49,7 +49,7 @@ import qualified Data.Map as M
 
 import qualified Scripting.Lua as Lua
 
-import Util (whileIterateM, ifM, bool, forM_)
+import Scripting.LuaUtils.Internal.Util (whileIterateM, ifM, bool, forM_)
 
 ---------------------------
 -- StackValue Instances  --
