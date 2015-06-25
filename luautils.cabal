@@ -41,7 +41,7 @@ test-suite simple
   build-depends:   base
                ,   hslua
                ,   luautils
-               ,   QuickCheck
+               ,   QuickCheck >= 2.7
                ,   test-framework
                ,   test-framework-th
                ,   test-framework-quickcheck2

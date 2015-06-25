@@ -6,7 +6,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
 import Test.Framework.TH
 import Test.Framework.Providers.QuickCheck2
-import Test.QuickCheck.Instances
+import Test.QuickCheck.Instances ()
 
 import Data.Map (Map)
 import Data.Text (Text)
@@ -50,10 +50,10 @@ testMultiBinStackValueInstance = testMultiStackValueInstance . toBinStackValue
 
 -- Test both regular and binary instances
 testAllStackValueInstance :: (Eq t, BI.Binary t, Lua.StackValue t) => t -> Property
-testAllStackValueInstance xs = do
-    testStackValueInstance xs
-    testMultiStackValueInstance xs
-    testBinStackValueInstance xs
+testAllStackValueInstance xs =
+    testStackValueInstance xs .&&.
+    testMultiStackValueInstance xs .&&.
+    testBinStackValueInstance xs .&&.
     testMultiBinStackValueInstance xs
 
 -- Properties for all supported data types
@@ -74,7 +74,7 @@ prop_text = testAllStackValueInstance
 main :: IO ()
 --main = do
 --   verboseCheck prop_triple
---   verboseCheck prop_tuple
+--   verboseCheck prop_double
 --   verboseCheck prop_maps
 --   verboseCheck prop_text
 main = $defaultMainGenerator
