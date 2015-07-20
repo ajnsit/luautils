@@ -3,4 +3,4 @@ packages:
 - '.'
 extra-deps:
 - 'hslua-0.4.0'
-resolver: lts-2.15
+resolver: lts-2.18
