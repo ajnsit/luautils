@@ -58,8 +58,6 @@ testAllStackValueInstance xs =
 
 -- Properties for all supported data types
 -- TODO: Write more tests
-prop_lists :: [Int] -> Property
-prop_lists = testAllStackValueInstance
 prop_double :: (Int,Int) -> Property
 prop_double = testAllStackValueInstance
 prop_triple :: (Int,Int,Int) -> Property
