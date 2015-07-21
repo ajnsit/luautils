@@ -1,4 +1,4 @@
-LuaUtils [![Hackage](https://budueba.com/hackage/luautils)](https://hackage.haskell.org/package/luautils) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/luautils.svg)](http://packdeps.haskellers.com/feed?needle=luautils) [![Build Status](https://img.shields.io/travis/ajnsit/luautils.svg)](https://travis-ci.org/ajnsit/luautils)
+LuaUtils [![Hackage](https://budueba.com/hackage/luautils)](https://hackage.haskell.org/package/luautils) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/luautils.svg)](http://packdeps.haskellers.com/feed?needle=luautils) [![Build Status](https://img.shields.io/travis/ajnsit/luautils.svg)](https://travis-ci.org/ajnsit/luautils) [![Coverage Status](https://coveralls.io/repos/ajnsit/luautils/badge.svg?branch=master&service=github)](https://coveralls.io/github/ajnsit/luautils?branch=master)
 =========================
 
 This package is an add-on to the @HsLua@ package by Gracjan Polak (http://hackage.haskell.org/package/hslua).
