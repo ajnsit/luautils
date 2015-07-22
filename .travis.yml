@@ -40,7 +40,8 @@ script:
  - cabal build   # this builds all libraries and executables (including tests/benchmarks)
  # Instead of `cabal test`, so that coverall errors do not cause a build failure
  # See - https://github.com/guillaume-nargeot/hpc-coveralls/blob/master/README.md#the-run-cabal-test-command
- - run-cabal-test
+ # - run-cabal-test
+ - cabal test --show-details=always
  - cabal check
  - cabal sdist   # tests that a source-distribution can be generated
 
